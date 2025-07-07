@@ -408,9 +408,9 @@ export default function CrewDetail() {
       )}
 
       {/* Crew Members List */}
-      {showForm && (
+      {/* {showForm && (
         <div className="border border-gray-200 p-6 rounded mb-6">
-          {/* …your existing form fields & save button… */}
+         
           <button
             onClick={handleSave}
             className="mt-6 px-5 py-2 bg-green-500 hover:bg-green-600 text-white rounded"
@@ -418,7 +418,7 @@ export default function CrewDetail() {
             Save
           </button>
         </div>
-      )}
+      )} */}
 
       {/* crew list / details */}
       {showList && (

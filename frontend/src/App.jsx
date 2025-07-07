@@ -41,11 +41,7 @@ export default function App() {
         <Route index element={<div className="flex items-center justify-center h-full p-6 text-gray-600">Please select "Crew Detail" or "Boat Scheduling" above.</div>} />
         <Route
           path="crew"
-          element={
-            role === 'manager'
-              ? <CrewDetail />
-              : <Navigate to="boat" replace />
-          }
+          element={<CrewDetail />}
         />
         <Route path="boat" element={<BoatScheduling />} />
       </Route>
