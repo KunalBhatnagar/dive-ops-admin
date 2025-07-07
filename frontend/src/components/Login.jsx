@@ -4,6 +4,7 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import DiveOpsLogo from "../assets/Dive_Ops_Logo.png";
 import coverImg from "../assets/cover-bg.png";
+import { saveAuthToken } from "../services/authService";
 
 export default function Login() {
     const [form, setForm] = useState({ username: "", password: "" });
@@ -13,13 +14,13 @@ export default function Login() {
         e.preventDefault();
         try {
         const { data } = await axios.post("/api/login", form);
-        localStorage.setItem("token", data.token);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
+        saveAuthToken(data.token);
 
         navigate("/"); // ← go to the cover screen
-        } catch {
-        alert("Login failed.");
-        }
+        } catch (err) {
+            console.error("Login failed:", err);
+            alert("Invalid username or password");
+    }
     };
 
 return (

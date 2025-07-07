@@ -19,20 +19,24 @@ app.use(express.json());
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
 
-  const ok =
-    (username === MANAGER_USER && password === MANAGER_PASS) ||
-    (username === COMANAGER_USER  && password === COMANAGER_PASS);
+  let role;
+  if (username === MANAGER_USER && password === MANAGER_PASS) {
+    role = 'manager';
+  } else if (username === COMANAGER_USER && password === COMANAGER_PASS) {
+    role = 'co-manager';
+  } else {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
 
-  if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
-  // issue a JWT
-  const token = jwt.sign(
-    { sub: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
-    { expiresIn: '8h' }
-  );
+  // Issue JWT
+  const token = jwt.sign({ sub: username, role }, JWT_SECRET, {
+    expiresIn: '8h'
+  });
+
   res.json({ token });
 });
+
 
 // authorization middleware
 function authMiddleware(req, res, next) {

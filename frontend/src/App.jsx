@@ -8,7 +8,7 @@ import CrewDetail       from './components/CrewDetail'
 import BoatScheduling   from './components/BoatScheduling'
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token')  // ← now reads each render
+  const token = localStorage.getItem('authToken')  // ← now reads each render
   return token
     ? children
     : <Navigate to="/login" replace />
