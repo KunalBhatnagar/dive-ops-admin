@@ -52,9 +52,17 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
+function requireManager(req, res, next) {
+  if (req.user.role !== 'manager') {
+    return res.status(403).json({ error: 'Forbidden: managers only' });
+  }
+  next();
+}
 
-// apply auth to all crew & schedule routes:
-app.use('/api/crew',     authMiddleware);
+// protect crew routes: must be authenticated AND a manager
+app.use('/api/crew', authMiddleware, requireManager);
+
+// protect schedule routes: must be authenticated (either role)
 app.use('/api/schedule', authMiddleware);
 
 // Health check
@@ -385,40 +393,42 @@ app.delete('/api/crew/:id', async (req, res) => {
 
 
 // Schedule stubs (unchanged)
+// GET /api/schedule?date=YYYY-MM-DD
 app.get('/api/schedule', async (req, res) => {
   try {
-    const weekStart = req.query.date;               // "YYYY-MM-DD"
+    const weekStart = req.query.date;               // e.g. "2025-06-28"
     const weekEnd   = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
-    // fetch entries + crew data
-    const result = await pool.query(`
+    // pull back exactly what we INSERTed, including cycle_count
+     const result = await pool.query(`
       SELECT
         e.boat_id,
         e.position,
         e.crew_id,
-        c.first_name, c.last_name,
-        c.current_cycle_start,
-        c.cycle_length_weeks
+        e.week_number       AS week_number,
+        e.cycle_length      AS cycle_length,
+        e.cycle_count       AS cycle_count,
+        c.first_name,
+        c.last_name
       FROM schedule_entries e
       JOIN crew c ON c.id = e.crew_id
       WHERE e.week_start = $1;
     `, [weekStart]);
 
-    // build slots[boat][position] = { crewId, name, week, cycleLength }
+
+    // rehydrate slots[boat][position]
     const slots = {};
-    result.rows.forEach(r => {
+    for (const r of result.rows) {
       slots[r.boat_id] = slots[r.boat_id] || {};
-      // compute personal week number: difference in weeks +1
-      const start = new Date(r.current_cycle_start);
-      const wkNum = Math.floor((new Date(weekStart) - start) / (7*24*60*60*1000)) + 1;
       slots[r.boat_id][r.position] = {
-        crewId: r.crew_id,
-        name:   `${r.first_name} ${r.last_name}`,
-        week:   wkNum,
-        cycleLength: r.cycle_length_weeks
+        crewId:       r.crew_id,
+        name:         `${r.first_name} ${r.last_name}`,
+        week:         r.week_number,
+        cycleLength:  r.cycle_length,   // if you still need the number
+        cycleCount:   r.cycle_count     // your stored "X/N" string
       };
-    });
+    }
 
     res.json(slots);
   } catch (err) {
@@ -427,47 +437,57 @@ app.get('/api/schedule', async (req, res) => {
   }
 });
 
+
 // POST schedule for one week (replace all entries for that week)
 app.post('/api/schedule', async (req, res) => {
-  console.log('POST /api/schedule body:', req.body);
+  
   try {
     const { date: weekStart, slots } = req.body;
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
 
-    // delete existing for that week
+    // delete old entries for that week
     await pool.query(
       `DELETE FROM schedule_entries WHERE week_start = $1;`,
       [weekStart]
     );
 
-    // insert new ones, including crew_name
+    // now insert new ones, including your cycle_count
     const queries = [];
+        // inside app.post('/api/schedule'…)
     for (const [boatId, positions] of Object.entries(slots)) {
       for (const [position, slot] of Object.entries(positions)) {
-        const { crewId, week, cycleLength, name } = slot;
-        if (!crewId) continue; // skip empty slots
+        const { crewId, week, cycleLength, cycleCount, name } = slot;
+        if (!crewId) continue;
 
         queries.push(
           pool.query(
             `
             INSERT INTO schedule_entries
-              (week_start, week_end, week_number, boat_id, position, crew_id, crew_name)
-            VALUES ($1,      $2,      $3,          $4,      $5,       $6,      $7)
+              (week_start, week_end, week_number,
+               cycle_length, cycle_count,
+               boat_id, position, crew_id, crew_name)
+            VALUES
+              ($1,         $2,       $3,
+               $4,          $5,
+               $6,      $7,     $8,      $9);
             `,
             [
-              weekStart,
-              weekEnd,
-              week,
-              boatId,
-              position,
-              crewId,
-              name         // ← now inserting the denormalized crew name
+              weekStart, // $1
+              weekEnd, // $2
+              week, // $3  → numeric week number
+              cycleLength, // $4  → raw cycle_length integer
+              cycleCount, // $5  → your “X/N” string
+              boatId, // $6
+              position, // $7
+              crewId, // $8
+              name, // $9
             ]
           )
         );
       }
     }
+
 
     await Promise.all(queries);
     res.json({ message: 'Saved' });
@@ -476,6 +496,8 @@ app.post('/api/schedule', async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+
+       
 
 
 const PORT = process.env.PORT || 4000;

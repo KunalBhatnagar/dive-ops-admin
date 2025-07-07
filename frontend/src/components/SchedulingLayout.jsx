@@ -3,8 +3,10 @@ import React from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../services/useAuth';
 
 export default function SchedulingLayout() {
+  const { role } = useAuth();
   const nav = useNavigate();
   const logout = () => {
     localStorage.removeItem('token');
@@ -17,7 +19,9 @@ export default function SchedulingLayout() {
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow px-4 py-3 flex items-center justify-between">
         {/* Left‑side tabs */}
+        
         <div className="flex space-x-6">
+          {role === 'manager' && (
           <NavLink
             to="crew"
             className={({ isActive }) =>
@@ -28,6 +32,7 @@ export default function SchedulingLayout() {
           >
             Crew Detail
           </NavLink>
+          )}
           <NavLink
             to="boat"
             className={({ isActive }) =>

@@ -6,7 +6,7 @@ import axios from 'axios';
  * on every request automatically.
  */
 export function saveAuthToken(token) {
-  localStorage.setItem('authToken', token);
+  localStorage.setItem('token', token);
   axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 }
 
@@ -16,7 +16,7 @@ export function saveAuthToken(token) {
  * gets applied to axios headers.
  */
 export function loadAuthToken() {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem('token');
   if (token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
   }

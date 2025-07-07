@@ -97,75 +97,86 @@ export default function BoatScheduling() {
   }, [tripDate]);
 
   const handleSelect = async (boatId, position, weekStart, crewId) => {
-    // find the crew record
-    const crew = crewList.find((c) => String(c._id) === String(crewId));
+  // find the crew record
+  const crew = crewList.find((c) => String(c._id) === String(crewId));
 
-    let finalWeek = 0;
-    let finalCycleLength = 0;
+  let finalWeek = 0;
+  let finalCycleLength = 0;
 
-    if (crewId && crew) {
-      // calculate their week number
-      const start = new Date(crew.currentCycleStart);
-      const rawWeek =
-        Math.floor((new Date(weekStart) - start) / (7 * 24 * 60 * 60 * 1000)) +
-        1;
-      const wk = rawWeek < 1 ? 1 : rawWeek;
-      const maxCycle = crew.cycleLengthWeeks;
+  if (crewId && crew) {
+    // calculate their week number
+    const start   = new Date(crew.currentCycleStart);
+    const rawWeek = Math.floor((new Date(weekStart) - start)/(7*24*60*60*1000)) + 1;
+    const wk      = rawWeek < 1 ? 1 : rawWeek;
+    const maxCycle = crew.cycleLengthWeeks;
 
-      if (wk > maxCycle) {
-        // 1) Alert over-limit
-        window.alert(
-          `⚠️ ${crew.firstName} ${crew.lastName} is over their cycle limit!\n` +
-            `Week: ${wk}, Cycle length: ${maxCycle}`
-        );
-        // 2) Ask to reset
-        const doReset = window.confirm(
-          `Reset ${crew.firstName}'s cycle to start on ${weekStart}?`
-        );
-        if (doReset) {
-          // persist the new cycle start
-          await updateCrew({
-            ...crew,
-            currentCycleStart: weekStart,
-          });
-          // refresh your local crewList so next calculations use the new date
-          const refreshed = await getCrew();
-          setCrewList(refreshed);
+    // 👇 figure out if they were scheduled *last* week on *any* boat
+    const prev = new Date(weekStart);
+    prev.setDate(prev.getDate() - 7);
+    const prevKey = prev.toISOString().slice(0,10);
+    const scheduledLastWeek = Object.values(slots[prevKey] || {})
+      .flatMap(b => Object.values(b))
+      .some(s => String(s.crewId) === String(crewId));
+    if (wk > maxCycle && !scheduledLastWeek) {
+      // --- MISSED one week after finishing cycle ⇒ auto reset ---
+      // 1) Persist new cycle start
+      await updateCrew({ ...crew, currentCycleStart: weekStart });
+      // 2) Refresh your local crewList so future clicks use updated start
+      const refreshed = await getCrew();
+      setCrewList(refreshed);
 
-          finalWeek = 1; // reset week to 1
-          finalCycleLength = maxCycle;
-        } else {
-          finalWeek = wk;
-          finalCycleLength = maxCycle;
-        }
+      finalWeek = 1;
+      finalCycleLength = maxCycle;
+    }
+    else if (wk > maxCycle) {
+      window.alert(
+        `⚠️ ${crew.firstName} ${crew.lastName} is over their cycle limit!\n` +
+        `Week: ${wk}, Cycle length: ${maxCycle}`
+      );
+      const doReset = window.confirm(
+        `Reset ${crew.firstName}'s cycle to start on ${weekStart}?`
+      );
+      if (doReset) {
+        await updateCrew({ ...crew, currentCycleStart: weekStart });
+        const refreshed = await getCrew();
+        setCrewList(refreshed);
+        finalWeek = 1;
+        finalCycleLength = maxCycle;
       } else {
-        // normal assignment within cycle
         finalWeek = wk;
         finalCycleLength = maxCycle;
       }
+    } else {
+      finalWeek = wk;
+      finalCycleLength = maxCycle;
+    }
+  }
+
+  setSlots(prev => {
+    const weeks = { ...prev };
+    weeks[weekStart]         = { ...(weeks[weekStart] || {}) };
+    weeks[weekStart][boatId] = { ...(weeks[weekStart][boatId] || {}) };
+
+    if (!crewId) {
+      delete weeks[weekStart][boatId][position];
+    } else {
+      const displayName = crew.preferredName?.trim()
+        ? crew.preferredName
+        : `${crew.firstName} ${crew.lastName}`;
+
+      weeks[weekStart][boatId][position] = {
+        crewId,
+        name:        displayName,
+        week:        finalWeek,
+        cycleLength: finalCycleLength,
+        cycleCount:  `${finalWeek}/${finalCycleLength}`
+      };
     }
 
-    // update the in-memory slots for this week/boat/position
-    setSlots((prev) => {
-      const weeks = { ...prev };
-      weeks[weekStart] = { ...(weeks[weekStart] || {}) };
-      weeks[weekStart][boatId] = { ...(weeks[weekStart][boatId] || {}) };
+    return weeks;
+  });
+};
 
-      if (!crewId) {
-        // deselect
-        delete weeks[weekStart][boatId][position];
-      } else {
-        const displayName = crew.preferredName && crew.preferredName.trim() ? crew.preferredName : `${crew.firstName} ${crew.lastName}`;
-        weeks[weekStart][boatId][position] = {
-          crewId,
-          name: displayName,
-          week: finalWeek,
-          cycleLength: finalCycleLength,
-        };
-      }
-      return weeks;
-    });
-  };
 
   const handleResetCycle = (boatId, position, weekStart) => {
     setSlots((prev) => {
@@ -237,7 +248,7 @@ export default function BoatScheduling() {
     // optional title
     doc.setFontSize(14);
     doc.text(
-      `Schedule ${format(start, "dd-MM-yyyy")} to ${format(end, "dd-MM-yyyy")}`,
+      `Schedule ${format(start, "d MMMM yyyy")} to ${format(end, "d MMMM yyyy")}`,
       40,
       40
     );
@@ -360,8 +371,9 @@ export default function BoatScheduling() {
 
                         const week = cell.week || 0;
                         const cycle = cell.cycleLength || 0;
-                        const isOver = cycle > 0 && week > cycle;
-                        const cycleText = cycle > 0 ? `${week}/${cycle}` : "";
+                        const isOver = cell.cycleLength > 0 && cell.week > cell.cycleLength;
+                        const cycleText = cell.cycleCount || "";
+                        
 
                         return (
                           <React.Fragment key={pos}>
