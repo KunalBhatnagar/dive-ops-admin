@@ -17,8 +17,10 @@ import "react-datepicker/dist/react-datepicker.css";
 
 export default function BoatScheduling() {
   const [tripDate, setTripDate] = useState(new Date());
+  const earliestSat = startOfWeek(new Date(), { weekStartsOn: 6 });;
   const [slots, setSlots] = useState({});
   const [crewList, setCrewList] = useState([]);
+  const [editing, setEditing] = useState(false);
   const [printRange, setPrintRange] = useState({
     start: startOfWeek(new Date(), { weekStartsOn: 6 }),
     end: addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), 4),
@@ -279,19 +281,24 @@ export default function BoatScheduling() {
 
   return (
     <div className="w-full max-w-screen-xl mx-auto p-4 space-y-6 flex flex-col items-center">
+      
+
       {/* Date picker & Save */}
       <div className="flex items-center justify-center space-x-4 w-full">
+        <label className="block text-m font-medium">Schedule Date :</label>
         <DatePicker
           selected={tripDate}
           onChange={setTripDate}
           className="border rounded px-3 py-2 w-44"
         />
-        <button
-          onClick={saveAll}
-          className="px-6 py-2 bg-blue-600 text-white rounded"
-        >
-          Save All
-        </button>
+        {editing && (
+          <button
+            onClick={() => { saveAll(); setEditing(false); }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded"
+          >
+            Save All
+          </button>
+        )}
       </div>
       {/* — New: Print Range Pickers — */}
       <div className="flex items-center space-x-4">
@@ -347,11 +354,22 @@ export default function BoatScheduling() {
               .flatMap((boatMap) => Object.values(boatMap))
               .map((slot) => slot.crewId)
               .filter(Boolean);
+              const thisSat = startOfWeek(earliestSat, { weekStartsOn: 6 });
+              const isPast  = date.getTime() < thisSat.getTime();
             return (
               <div
                 key={ds}
                 className="flex-shrink-0 w-96 bg-gray-100 p-4 rounded shadow"
               >
+                {!isPast && (
+                <button
+                  onClick={() => setEditing((e) => !e)}
+                  className="absolute top-1 right-8 px-4 py-2 bg-blue-600  text-white rounded hover:bg-blue-500 text-m"
+                >
+                  {editing ? "Cancel" : "Edit"}
+                </button>
+                )}
+
                 <h3 className="font-semibold mb-1">{label} Week</h3>
                 <div className="text-sm text-gray-700 mb-4">
                   {format(date, "dd-MMM-yyyy")}
@@ -367,13 +385,12 @@ export default function BoatScheduling() {
                       <div className="font-semibold">CYCLE</div>
                       {boat.positions.map((pos) => {
                         const cell = slots[ds]?.[boat.id]?.[pos] || {};
-                        
 
                         const week = cell.week || 0;
                         const cycle = cell.cycleLength || 0;
-                        const isOver = cell.cycleLength > 0 && cell.week > cell.cycleLength;
+                        const isOver =
+                          cell.cycleLength > 0 && cell.week > cell.cycleLength;
                         const cycleText = cell.cycleCount || "";
-                        
 
                         return (
                           <React.Fragment key={pos}>
@@ -384,39 +401,45 @@ export default function BoatScheduling() {
                             <div>
                               {cell.crewId ? (
                                 <button
+                                  disabled={!editing || isPast}
                                   onClick={() => {
+                                    // bail out if not editing or in a past week
+                                    if (!editing || isPast) return;
+
                                     if (cell.overByOne) {
-                                      // Over‐by‐one: prompt for cycle reset
                                       const ok = window.confirm(
                                         `⚠️ ${cell.name} is more than one week over their cycle.\n\n` +
                                           `Current: ${cell.week}/${cell.cycleLength}\n\n` +
                                           `Reset their cycle to start here?`
                                       );
-                                      if (ok) {
-                                        // user confirmed reset → reset their week to 1
+                                      if (ok)
                                         handleResetCycle(boat.id, pos, ds);
-                                      }
                                     } else {
-                                      // normal click = deselect
                                       handleSelect(boat.id, pos, ds, "");
                                     }
                                   }}
-                                  className="text-blue-600 underline hover:text-blue-800"
+                                  className={
+                                    !editing || isPast
+                                      ? "text-gray-400 cursor-not-allowed"
+                                      : "text-blue-600 underline hover:text-blue-800"
+                                  }
                                 >
                                   {cell.name}
                                 </button>
                               ) : (
                                 <select
                                   value={cell.crewId || ""}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    if (!editing || isPast) return;
                                     handleSelect(
                                       boat.id,
                                       pos,
                                       ds,
                                       e.target.value
-                                    )
-                                  }
-                                  className="w-full border rounded px-1 py-0.5"
+                                    );
+                                  }}
+                                  disabled={!editing || isPast}
+                                  className="w-full border rounded px-1 py-0.5 disabled:opacity-50"
                                 >
                                   <option value="">— select —</option>
                                   {crewList
@@ -433,7 +456,7 @@ export default function BoatScheduling() {
                                     // 3️⃣ joined by first eligible Saturday?
                                     .filter((c) => {
                                       const joinDate = new Date(
-                                        c.dateEmploymentStarted
+                                        c.currentCycleStart
                                       );
                                       const day = joinDate.getDay(); // 0=Sun … 6=Sat
                                       const daysToSat = (6 - day + 7) % 7 || 7;
@@ -447,7 +470,9 @@ export default function BoatScheduling() {
                                       );
                                     })
                                     // 4️⃣ not already assigned this week?
-                                    .filter(c => !takenIds.includes(String(c._id)))
+                                    .filter(
+                                      (c) => !takenIds.includes(String(c._id))
+                                    )
                                     // 5️⃣ render each remaining crew as an option
                                     .map((c) => {
                                       const label = c.preferredName?.trim()
