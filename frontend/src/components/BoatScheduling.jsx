@@ -14,6 +14,7 @@ import autoTable from "jspdf-autotable";
 import { getSchedule, saveSchedule } from "../services/scheduleService";
 import { updateCrew, getCrew } from "../services/crewService";
 import "react-datepicker/dist/react-datepicker.css";
+import { differenceInCalendarWeeks, parseISO } from "date-fns";
 
 export default function BoatScheduling() {
   const [tripDate, setTripDate] = useState(new Date());
@@ -107,9 +108,13 @@ export default function BoatScheduling() {
 
   if (crewId && crew) {
     // calculate their week number
-    const start   = new Date(crew.currentCycleStart);
-    const rawWeek = Math.floor((new Date(weekStart) - start)/(7*24*60*60*1000)) + 1;
-    const wk      = rawWeek < 1 ? 1 : rawWeek;
+    // calculate their week number (Sat‑to‑Sat)
+    const startDate     = parseISO(crew.currentCycleStart);
+    const weekStartDate = parseISO(weekStart);
+    const wk = differenceInCalendarWeeks(weekStartDate, startDate, {
+      weekStartsOn: 6,
+    }) + 1;
+
     const maxCycle = crew.cycleLengthWeeks;
 
     // 👇 figure out if they were scheduled *last* week on *any* boat
@@ -459,7 +464,7 @@ export default function BoatScheduling() {
                                         c.currentCycleStart
                                       );
                                       const day = joinDate.getDay(); // 0=Sun … 6=Sat
-                                      const daysToSat = (6 - day + 7) % 7 || 7;
+                                      const daysToSat = (6 - day + 7) % 7;
                                       const firstSat = new Date(joinDate);
                                       firstSat.setDate(
                                         joinDate.getDate() + daysToSat
