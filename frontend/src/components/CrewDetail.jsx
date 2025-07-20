@@ -15,7 +15,7 @@ const initialForm = {
   contactMethod: 'email',
   dateEmploymentStarted: '',
   currentCycleStart: '',
-  cycleLengthWeeks: '0',
+  cycleLengthWeeks: '1',
   currentCycleEnd: '',
   positionsTrainedCaptain: false,
   positionsTrained1stMate:  false,
@@ -172,7 +172,7 @@ export default function CrewDetail() {
             {/* First Name */}
             <div className="flex flex-col">
               <label className="text-sm font-medium text-gray-700">
-                First Name
+                First Name *
               </label>
               <input
                 type="text"
@@ -187,7 +187,7 @@ export default function CrewDetail() {
             {/* Last Name */}
             <div className="flex flex-col">
               <label className="text-sm font-medium text-gray-700">
-                Last Name
+                Last Name *
               </label>
               <input
                 type="text"
@@ -214,7 +214,7 @@ export default function CrewDetail() {
 
             {/* Email */}
             <div className="flex flex-col">
-              <label className="text-sm font-medium text-gray-700">Email</label>
+              <label className="text-sm font-medium text-gray-700">Email *</label>
               <input
                 type="email"
                 value={form.email}
@@ -228,7 +228,7 @@ export default function CrewDetail() {
             {/* Telephone */}
             <div className="flex flex-col">
               <label className="text-sm font-medium text-gray-700">
-                Telephone
+                Telephone *
               </label>
               <input
                 type="tel"
@@ -260,7 +260,7 @@ export default function CrewDetail() {
             {/* Date Employed */}
             <div className="flex flex-col md:col-span-2">
               <label className="text-sm font-medium text-gray-700">
-                Date Employed
+                Date Employed *
               </label>
               <input
                 type="date"
@@ -278,7 +278,7 @@ export default function CrewDetail() {
             {/* Cycle Start */}
             <div className="flex flex-col md:col-span-2">
               <label className="text-sm font-medium text-gray-700">
-                Cycle Start
+                Cycle Start *
               </label>
               <input
                 type="date"
@@ -297,7 +297,7 @@ export default function CrewDetail() {
               </label>
               <input
                 type="number"
-                min="0"
+                min="1"
                 value={form.cycleLengthWeeks}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, cycleLengthWeeks: e.target.value }))

@@ -294,7 +294,7 @@ export default function BoatScheduling() {
 
       {/* Date picker & Save */}
       <div className="flex items-center justify-center space-x-4 w-full">
-        <label className="block text-m font-medium">Schedule Date :</label>
+        <label className="block text-m font-medium">Viewing Week Of :</label>
         <DatePicker
           selected={tripDate}
           onChange={setTripDate}
@@ -312,7 +312,7 @@ export default function BoatScheduling() {
       {/* — New: Print Range Pickers — */}
       <div className="flex items-center space-x-4">
         <div>
-          <label className="block text-sm font-medium">From</label>
+          <label className="block text-sm font-medium">Start Date</label>
           <DatePicker
             selected={printRange.start}
             onChange={(d) =>
@@ -325,7 +325,7 @@ export default function BoatScheduling() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium">To</label>
+          <label className="block text-sm font-medium">End Date</label>
           <DatePicker
             selected={printRange.end}
             onChange={(d) =>
@@ -341,7 +341,7 @@ export default function BoatScheduling() {
           onClick={generatePDF}
           className="mt-6 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded shadow"
         >
-          Print PDF
+          Print Schedule
         </button>
       </div>
 
@@ -375,7 +375,7 @@ export default function BoatScheduling() {
                   onClick={() => setEditing((e) => !e)}
                   className="absolute top-1 right-8 px-4 py-2 bg-blue-600  text-white rounded hover:bg-blue-500 text-m"
                 >
-                  {editing ? "Cancel" : "Edit"}
+                  {editing ? "Cancel" : "Edit Schedule"}
                 </button>
                 )}
 
