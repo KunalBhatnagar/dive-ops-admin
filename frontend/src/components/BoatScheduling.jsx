@@ -15,6 +15,8 @@ import { getSchedule, saveSchedule } from "../services/scheduleService";
 import { updateCrew, getCrew } from "../services/crewService";
 import "react-datepicker/dist/react-datepicker.css";
 import { differenceInCalendarWeeks, parseISO } from "date-fns";
+// src/components/BoatScheduling.jsx
+import { useAuth } from "../services/useAuth";
 
 export default function BoatScheduling() {
   const [tripDate, setTripDate] = useState(new Date());
@@ -26,6 +28,8 @@ export default function BoatScheduling() {
     start: startOfWeek(new Date(), { weekStartsOn: 6 }),
     end: addWeeks(startOfWeek(new Date(), { weekStartsOn: 6 }), 4),
   });
+
+  const { role } = useAuth();
 
   const boats = [
     {
@@ -366,7 +370,7 @@ export default function BoatScheduling() {
                 key={ds}
                 className="flex-shrink-0 w-96 bg-gray-100 p-4 rounded shadow"
               >
-                {!isPast && (
+                {role === 'manager' && !isPast && (
                 <button
                   onClick={() => setEditing((e) => !e)}
                   className="absolute top-1 right-8 px-4 py-2 bg-blue-600  text-white rounded hover:bg-blue-500 text-m"
